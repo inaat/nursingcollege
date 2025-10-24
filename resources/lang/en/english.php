@@ -1713,6 +1713,8 @@ During The Admission',
 'filter' => 'Filter',
 'all' => 'All',
 'others' => 'Others',
+'class_batch_semester_fee_report'=>'Class Batch Semester Fee Report',
+'received_amount'=>'Received Amount'
 
 
 ];

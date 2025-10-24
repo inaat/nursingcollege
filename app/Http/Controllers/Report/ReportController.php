@@ -10,7 +10,9 @@ use DB;
 use App\Models\ExpenseCategory;
 use App\Models\ExpenseTransaction;
 use App\Models\FeeTransactionPayment;
+use App\Models\FeeTransaction;
 use App\Models\Campus;
+use App\Models\Student;
 use App\Utils\ExpenseTransactionUtil;
 use App\Utils\HrmTransactionUtil;
 use App\Models\HumanRM\HrmTransactionPayment;
@@ -445,5 +447,113 @@ public function getExpenseAndIncomeReport(Request $request)
                     'overallTotals',
                     'filters'
                 ));
+}
+
+
+public function getClassBatchSemesterWiseFeeCollection(Request $request)
+{
+    if (!auth()->user()->can('fee_report.view')) {
+        abort(403, 'Unauthorized action.');
+    }
+    
+    // Build the main query
+    if (!auth()->user()->can('fee_report.view')) {
+        abort(403, 'Unauthorized action.');
+    }
+    
+    // Build the main query
+    $query = DB::table('fee_transactions as ft')
+        ->join('classes as c', 'ft.class_id', '=', 'c.id')
+        ->join('class_sections as cs', 'ft.class_section_id', '=', 'cs.id')
+        ->join('batches as b', 'ft.batch_id', '=', 'b.id')
+        ->join('semesters as sem', 'ft.semester_id', '=', 'sem.id')
+        ->leftJoin(DB::raw('(SELECT fee_transaction_id, SUM(amount) as total_paid 
+                             FROM fee_transaction_payments 
+                             WHERE is_return = 0 
+                             GROUP BY fee_transaction_id) as ftp'), 
+                   'ft.id', '=', 'ftp.fee_transaction_id')
+       // ->where('ft.batch_id', 1)
+    //    ->where('ft.class_id', 1)
+        ->whereIn('ft.type', ['fee', 'other_fee', 'opening_balance', 'admission_fee']);
+    
+    // Apply campus permissions
+    $permitted_campuses = auth()->user()->permitted_campuses();
+    if ($permitted_campuses != 'all') {
+        $query->whereIn('ft.campus_id', $permitted_campuses);
+    }
+    
+    // Get the detailed data
+    $feeCollectionData = $query->select(
+        'c.id as class_id',
+        'c.title as class_title',
+        'cs.id as section_id',
+        'cs.section_name as section_title',
+        'b.id as batch_id',
+        'b.title as batch_name',
+        'sem.id as semester_id',
+        'sem.title as semester_title',
+        DB::raw('SUM(ft.final_total) as total_amount'),
+        DB::raw('COALESCE(SUM(ftp.total_paid), 0) as received_amount'),
+        DB::raw('SUM(ft.final_total) - COALESCE(SUM(ftp.total_paid), 0) as remaining_balance')
+    )
+    ->groupBy('c.id', 'c.title', 'cs.id', 'cs.section_name', 'b.id', 'b.title', 'sem.id', 'sem.title')
+    ->orderBy('c.title', 'asc')
+    ->orderBy('b.title', 'asc')
+    ->orderBy('sem.title', 'asc')
+    ->get();
+    // Group by Class and Batch combination
+    $groupedData = [];
+    
+    foreach ($feeCollectionData as $item) {
+        $key = $item->class_id . '_' . $item->batch_id;
+        
+        // Initialize class-batch group if not exists
+        if (!isset($groupedData[$key])) {
+            $groupedData[$key] = [
+                'class_id' => $item->class_id,
+                'class_title' => $item->class_title,
+                'batch_id' => $item->batch_id,
+                'batch_name' => $item->batch_name,
+                'batch_total_amount' => 0,
+                'batch_received_amount' => 0,
+                'batch_remaining_balance' => 0,
+                'semesters' => []
+            ];
+        }
+        
+        // Add semester data
+        $groupedData[$key]['semesters'][] = [
+            'section_id' => $item->section_id,
+            'section_title' => $item->section_title,
+            'semester_id' => $item->semester_id,
+            'semester_title' => $item->semester_title,
+            'total_amount' => $item->total_amount,
+            'received_amount' => $item->received_amount,
+            'remaining_balance' => $item->remaining_balance
+        ];
+        
+        // Update batch totals
+        $groupedData[$key]['batch_total_amount'] += floatval($item->total_amount);
+        $groupedData[$key]['batch_received_amount'] += floatval($item->received_amount);
+        $groupedData[$key]['batch_remaining_balance'] += floatval($item->remaining_balance);
+    }
+    
+    // Convert to array values
+    $groupedData = array_values($groupedData);
+    
+    // Calculate overall totals
+    $overallTotals = [
+        'total_amount' => $feeCollectionData->sum('total_amount'),
+        'received_amount' => $feeCollectionData->sum('received_amount'),
+        'remaining_balance' => $feeCollectionData->sum('remaining_balance')
+    ];
+    
+   // dd($groupedData, $overallTotals );
+    
+    return view('Report.income.class_batch_semester_fee_report')
+                ->with(compact(
+                    'groupedData',
+                    'overallTotals'
+                ));  
 }
 }

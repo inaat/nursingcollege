@@ -859,6 +859,28 @@ class AdminSidebarMenu
                                 ['icon' => 'bx bx-right-arrow-alt', 'active' => request()->segment(1) == 'income-report']
                             );
                         }
+                        
+                          if (auth()->user()->can('income_report.view')) {
+                            $sub->url(
+                                action('Report\ReportController@getExpenseAndIncomeReport'),
+                                __('Monhtly Expense Report'),
+                                ['icon' => 'bx bx-right-arrow-alt', 'active' => request()->segment(2) == 'monthlyexpense-report']
+                            );
+                        }
+                          if (auth()->user()->can('income_report.view')) {
+                            $sub->url(
+                                action('Report\ReportController@getClassBatchSemesterWiseFeeCollection'),
+                                __('english.class_batch_semester_fee_report'),
+                                ['icon' => 'bx bx-right-arrow-alt', 'active' => request()->segment(2) == 'batch-wise-report']
+                            );
+                        }
+                          if (auth()->user()->can('income_report.view')) {
+                           $sub->url(
+                                action('CustomReportController@index'),
+                                __('Custom Report'),
+                                ['icon' => 'bx bx-right-arrow-alt', 'active' => request()->segment(1) == 'custom-reports']
+                            );
+                        }
                     },
                     ['icon' => 'fadeIn animated bx bx-bar-chart']
                 )->order(20);

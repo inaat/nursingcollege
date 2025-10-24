@@ -10,7 +10,7 @@ use Google\Service\AndroidEnterprise\Administrator;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\WhatsappDeviceController;
 use Illuminate\Support\Facades\Artisan;
-
+use App\Http\Controllers\CustomReportController;
 Route::get('/clear-cache', function() {
     Artisan::call('config:cache');
     Artisan::call('config:clear');
@@ -300,7 +300,8 @@ Route::get('/exam/single-date-sheet', 'Examination\ExamDateSheetController@singl
     Route::resource('report/top-defaulter', 'Report\TopDefaulterController'); 
     Route::resource('report/strength', 'Report\StrengthController'); 
     Route::get('/reports/expense-report', 'Report\ReportController@getExpenseReport');
-    Route::get('/reports/montlyexpense-report', 'Report\ReportController@getExpenseAndIncomeReport');
+    Route::get('/reports/monthlyexpense-report', 'Report\ReportController@getExpenseAndIncomeReport');
+    Route::get('/reports/batch-wise-report','Report\ReportController@getClassBatchSemesterWiseFeeCollection');
     Route::resource('note-book', 'NoteBookStatusController'); 
 
     Route::get('note-print-empty-create', 'NoteBookStatusController@noteBookEmptyPrintCreate');
@@ -366,7 +367,19 @@ Route::get('/exam/single-date-sheet', 'Examination\ExamDateSheetController@singl
 		Route::post('whatsapp/gateway/qr-code', [WhatsappDeviceController::class, 'getWaqr'])->name('gateway.whatsapp.qrcode');
 
 
+Route::group(['prefix' => 'custom-reports', 'middleware' => 'auth'], function () {
+    Route::get('/', [CustomReportController::class, 'index'])->name('reports.index');
+    Route::get('/create', [CustomReportController::class, 'create'])->name('reports.create');
+    Route::post('/', [CustomReportController::class, 'store'])->name('reports.store');
+    Route::get('/{report}', [CustomReportController::class, 'show'])->name('reports.show');
+    Route::get('/{report}/generate', [CustomReportController::class, 'generate'])->name('reports.generate');
+    Route::get('/{report}/export/{format}', [CustomReportController::class, 'export'])->name('reports.export');
+     // New routes for edit and update
+    Route::get('/reports/{report}/edit', [CustomReportController::class, 'edit'])->name('reports.edit');
+    Route::put('/reports/{report}', [CustomReportController::class, 'update'])->name('reports.update');
+    Route::delete('/reports/{report}', [CustomReportController::class, 'destroy'])->name('reports.destroy');
 
+});
 
 });
 
