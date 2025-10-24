@@ -9,4 +9,4 @@
 
                 } else {
                     $balance[$key]=$total[$key]-$p -$discount_payment_formatted[$key];
-                }
+                }# nursingcollege
